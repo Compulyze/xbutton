@@ -1,645 +1,196 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>X Clone</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r161/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-    <style>
-        :root {
-            --bg: #000;
-            --text: #fff;
-            --border: #333;
-            --secondary: #71767b;
-            --profile: #333;
-            --logo-size: clamp(20px, 6vw, 24px);
-            --btn-font: clamp(13px, 3.5vw, 15px);
-            --transition: cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
-        @supports (view-transition-name: var(--test)) {
-            @starting-style { main { view-transition-name: feed-container; } }
-        }
-        body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            overflow-x: hidden;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            touch-action: manipulation;
-            accent-color: #1d9bf0;
-        }
-        #app { height: 100vh; overflow: hidden; }
-        #webgl-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
-        header {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            height: 50px;
-            background: var(--bg);
-            display: flex; align-items: center;
-            z-index: 10;
-            border-bottom: 1px solid var(--border);
-            padding: 0 env(safe-area-inset-left) 0 env(safe-area-inset-right);
-            box-sizing: border-box;
-            padding-top: env(safe-area-inset-top, 0);
-        }
-        .left-section { flex: 1; display: flex; justify-content: flex-start; }
-        .user-section {
-            width: 32px; height: 32px; position: relative; cursor: pointer; border-radius: 50%; overflow: hidden;
-            transition: transform 0.1s var(--transition);
-        }
-        .user-section:hover { transform: scale(1.05); }
-        .user-pic {
-            width: 100%; height: 100%;
-            background: var(--profile); border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 16px; line-height: 1;
-            overflow: hidden;
-        }
-        .profile-pic {
-            width: 40px; height: 40px;
-            background: var(--profile); border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 20px; line-height: 1;
-            margin-right: 12px; flex-shrink: 0;
-            overflow: hidden;
-        }
-        .profile-pic span, .user-pic span { display: flex; align-items: center; justify-content: center; min-width: 0; }
-        .center-section {
-            position: absolute; left: 50%; top: 50%;
-            transform: translate(-50%, -50%);
-            display: flex; align-items: center;
-            pointer-events: none;
-        }
-        .logo { font-size: var(--logo-size); margin: 0; pointer-events: none; }
-        .right-section { flex: 1; display: flex; justify-content: flex-end; }
-        #feed-switch {
-            background: none; border: none;
-            color: var(--text); font-size: var(--btn-font);
-            cursor: pointer; padding: 8px 16px 8px 8px;
-            white-space: nowrap; position: relative;
-            transition: color 0.1s ease;
-        }
-        #feed-switch:hover { color: #1d9bf0; }
-        #feed-switch::after {
-            content: ' ▼'; font-size: 0.8em; opacity: 0.7;
-            margin-left: 4px;
-        }
-        #user-dropdown, #dropdown {
-            position: absolute; top: 100%;
-            background: var(--bg); border: 1px solid var(--border);
-            border-top: none; border-radius: 0 0 8px 8px;
-            min-width: 140px; overflow: hidden;
-            opacity: 0; transform: translateY(-8px);
-            z-index: 11;
-        }
-        #user-dropdown { left: env(safe-area-inset-left, 0); min-width: 160px; }
-        #dropdown { right: env(safe-area-inset-right, 0); }
-        #user-dropdown.show, #dropdown.show {
-            opacity: 1; transform: translateY(0);
-        }
-        #user-dropdown div, #dropdown div {
-            padding: 12px 16px; cursor: pointer;
-            border-bottom: 1px solid var(--border);
-            transition: background 0.15s ease;
-        }
-        #user-dropdown div:last-child, #dropdown div:last-child { border-bottom: none; }
-        #user-dropdown div:hover, #dropdown div:hover { background: rgba(255,255,255,0.05); }
-        main {
-            position: relative; top: calc(50px + env(safe-area-inset-top, 0));
-            height: calc(100vh - 50px - env(safe-area-inset-top, 0));
-            overflow-y: auto; -webkit-overflow-scrolling: touch;
-            z-index: 2;
-        }
-        .feed { position: absolute; top: 0; left: 0; width: 100%; }
-        .feed:not(.active) { display: none; }
-        .post {
-            display: flex; padding: 16px;
-            border-bottom: 1px solid var(--border);
-        }
-        .post-header { display: flex; align-items: center; margin-bottom: 8px; flex: 1; }
-        .post-header > div { flex: 1; min-width: 0; }
-        .name { font-weight: 700; margin: 0 0 2px 0; word-break: break-word; }
-        .handle { color: var(--secondary); font-size: 14px; margin: 0; word-break: break-word; }
-        .time { color: var(--secondary); font-size: 14px; margin-left: auto; white-space: nowrap; flex-shrink: 0; }
-        .content { line-height: 1.4; word-break: break-word; margin: 0 0 8px 0; }
-        .actions { display: flex; gap: 24px; color: var(--secondary); font-size: 14px; margin: 0; }
-        .actions span { margin-right: 4px; }
-        @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>X Clone</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r161/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <style>
+    :root {
+      --bg: #000;
+      --text: #fff;
+      --border: #333;
+      --secondary: #71767b;
+      --profile: #333;
+      --logo-size: clamp(20px, 6vw, 24px);
+      --btn-font: clamp(13px, 3.5vw, 15px);
+      --transition: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      --blue: #1d9bf0;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      touch-action: manipulation;
+    }
+    header {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 50px; background: var(--bg);
+      display: flex; align-items: center;
+      z-index: 10; border-bottom: 1px solid var(--border);
+      padding-top: env(safe-area-inset-top, 0);
+    }
+    .left-section { flex: 1; display: flex; justify-content: flex-start; }
+    .user-section { width: 32px; height: 32px; cursor: pointer; border-radius: 50%; overflow: hidden; position: relative; }
+    .user-pic { width: 100%; height: 100%; background: var(--profile); display: flex; align-items: center; justify-content: center; }
+    .center-section { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); pointer-events: none; }
+    .logo { font-size: var(--logo-size); }
+    .right-section { flex: 1; display: flex; justify-content: flex-end; }
+    #feed-switch {
+      background: none; border: none; color: var(--text);
+      font-size: var(--btn-font); cursor: pointer;
+      padding: 8px 16px 8px 8px; border-radius: 20px;
+      transition: color 0.1s ease;
+    }
+    #feed-switch:hover { color: var(--blue); }
+    #feed-switch::after { content: ' ▼'; font-size: 0.8em; color: var(--blue); margin-left: 4px; }
+    #user-dropdown, #dropdown {
+      position: absolute; top: 100%;
+      background: var(--bg); border: 1px solid var(--border);
+      min-width: 140px; opacity: 0; transform: translateY(-8px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none; z-index: 11;
+    }
+    #user-dropdown.show, #dropdown.show {
+      opacity: 1; transform: translateY(0);
+      pointer-events: auto;
+    }
+    #user-dropdown div, #dropdown div {
+      padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--border);
+    }
+    #user-dropdown div:hover, #dropdown div:hover { background: rgba(255,255,255,0.05); }
+    main {
+      position: relative; top: 50px;
+      height: calc(100vh - 50px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .feed { position: absolute; top: 0; left: 0; width: 100%; }
+    .feed:not(.active) { display: none; }
+    .post { display: flex; padding: 16px; border-bottom: 1px solid var(--border); }
+    .profile-pic { width: 40px; height: 40px; background: var(--profile); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-right: 12px; }
+    .post-header { display: flex; align-items: center; margin-bottom: 8px; flex: 1; }
+    .name { font-weight: 700; margin: 0 0 2px 0; }
+    .handle, .time { color: var(--secondary); font-size: 14px; }
+  </style>
 </head>
 <body>
-    <div id="app">
-        <canvas id="webgl-canvas"></canvas>
-        <header>
-            <div class="left-section">
-                <div class="user-section" id="user-section" role="button" aria-label="User menu" tabindex="0">
-                    <div class="user-pic"><span>👤</span></div>
-                    <div id="user-dropdown" role="menu">
-                        <div role="menuitem">Profile</div>
-                        <div role="menuitem">Settings</div>
-                        <div role="menuitem">Logout</div>
-                    </div>
-                </div>
-            </div>
-            <div class="center-section">
-                <div class="logo">𝕏</div>
-            </div>
-            <div class="right-section">
-                <button id="feed-switch" aria-haspopup="true" aria-expanded="false">For You</button>
-                <div id="dropdown" role="menu">
-                    <div role="menuitem">For You</div>
-                    <div role="menuitem">Following</div>
-                    <div role="menuitem">News</div>
-                    <div role="menuitem">Community</div>
-                </div>
-            </div>
-        </header>
-        <main>
-            <div id="feed-for-you" class="feed active">
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>😀</span></div>
-                        <div>
-                            <div class="name">Alice Johnson</div>
-                            <div class="handle">@alice_j</div>
-                        </div>
-                        <div class="time">1h ago</div>
-                    </div>
-                    <div class="content">Just had the best coffee ever! ☕ Who's with me?</div>
-                    <div class="actions">❤️ 42 🔄 12 💬 8 📎 0</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>😎</span></div>
-                        <div>
-                            <div class="name">Bob Smith</div>
-                            <div class="handle">@bobtech</div>
-                        </div>
-                        <div class="time">2h ago</div>
-                    </div>
-                    <div class="content">New tech gadget alert! This changes everything. #Innovation</div>
-                    <div class="actions">❤️ 156 🔄 45 💬 23 📎 1</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>🚀</span></div>
-                        <div>
-                            <div class="name">Space Explorer</div>
-                            <div class="handle">@spacefan</div>
-                        </div>
-                        <div class="time">3h ago</div>
-                    </div>
-                    <div class="content">Watching the stars tonight. Universe is amazing! 🌌</div>
-                    <div class="actions">❤️ 89 🔄 20 💬 15 📎 0</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>🎨</span></div>
-                        <div>
-                            <div class="name">Art Lover</div>
-                            <div class="handle">@artistic</div>
-                        </div>
-                        <div class="time">4h ago</div>
-                    </div>
-                    <div class="content">Sharing my latest sketch. Feedback welcome! ✏️</div>
-                    <div class="actions">❤️ 67 🔄 18 💬 12 📎 2</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>🍕</span></div>
-                        <div>
-                            <div class="name">Foodie Fred</div>
-                            <div class="handle">@fred_eats</div>
-                        </div>
-                        <div class="time">5h ago</div>
-                    </div>
-                    <div class="content">Pizza night! What's your favorite topping? 🍕</div>
-                    <div class="actions">❤️ 234 🔄 56 💬 34 📎 0</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>🌟</span></div>
-                        <div>
-                            <div class="name">Trend Setter</div>
-                            <div class="handle">@trendsetter</div>
-                        </div>
-                        <div class="time">6h ago</div>
-                    </div>
-                    <div class="content">Viral trend of the day: #AIArtExplosion – mind-blowing creations!</div>
-                    <div class="actions">❤️ 567 🔄 123 💬 89 📎 5</div>
-                </div>
-            </div>
-            <div id="feed-following" class="feed">
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>👩‍💻</span></div>
-                        <div>
-                            <div class="name">Dev Dana</div>
-                            <div class="handle">@danadev</div>
-                        </div>
-                        <div class="time">30m ago</div>
-                    </div>
-                    <div class="content">Pushing code updates. Late night grind! 💻</div>
-                    <div class="actions">❤️ 12 🔄 3 💬 2 📎 0</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>🏃‍♂️</span></div>
-                        <div>
-                            <div class="name">Runner Rick</div>
-                            <div class="handle">@rickruns</div>
-                        </div>
-                        <div class="time">1h ago</div>
-                    </div>
-                    <div class="content">Just completed 10k. Feeling great! 🏅</div>
-                    <div class="actions">❤️ 8 🔄 1 💬 4 📎 0</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>📚</span></div>
-                        <div>
-                            <div class="name">Bookworm Beth</div>
-                            <div class="handle">@bethreads</div>
-                        </div>
-                        <div class="time">2h ago</div>
-                    </div>
-                    <div class="content">Finished 'Dune' sequel. Mind blown! 📖</div>
-                    <div class="actions">❤️ 15 🔄 4 💬 6 📎 1</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>🎸</span></div>
-                        <div>
-                            <div class="name">Guitar Gus</div>
-                            <div class="handle">@gusguitar</div>
-                        </div>
-                        <div class="time">3h ago</div>
-                    </div>
-                    <div class="content">New riff idea. What do you think? 🎵</div>
-                    <div class="actions">❤️ 9 🔄 2 💬 3 📎 0</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>🌿</span></div>
-                        <div>
-                            <div class="name">Gardener Grace</div>
-                            <div class="handle">@gracegrows</div>
-                        </div>
-                        <div class="time">4h ago</div>
-                    </div>
-                    <div class="content">My tomatoes are thriving this season! 🥦</div>
-                    <div class="actions">❤️ 11 🔄 2 💬 5 📎 0</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>📸</span></div>
-                        <div>
-                            <div class="name">Photo Fan</div>
-                            <div class="handle">@photofan</div>
-                        </div>
-                        <div class="time">5h ago</div>
-                    </div>
-                    <div class="content">Captured a sunset that took my breath away. Share yours! 🌅</div>
-                    <div class="actions">❤️ 22 🔄 6 💬 9 📎 1</div>
-                </div>
-            </div>
-            <div id="feed-news" class="feed">
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>📰</span></div>
-                        <div>
-                            <div class="name">News Network</div>
-                            <div class="handle">@newsnet</div>
-                        </div>
-                        <div class="time">Breaking</div>
-                    </div>
-                    <div class="content">Major breakthrough in renewable energy tech announced today. #GreenEnergy</div>
-                    <div class="actions">❤️ 456 🔄 123 💬 89 📎 3</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>🌍</span></div>
-                        <div>
-                            <div class="name">Global Updates</div>
-                            <div class="handle">@globalnews</div>
-                        </div>
-                        <div class="time">1h ago</div>
-                    </div>
-                    <div class="content">International summit on climate change yields new agreements. #ClimateAction</div>
-                    <div class="actions">❤️ 289 🔄 67 💬 45 📎 2</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>💼</span></div>
-                        <div>
-                            <div class="name">Econ Watch</div>
-                            <div class="handle">@econwatch</div>
-                        </div>
-                        <div class="time">2h ago</div>
-                    </div>
-                    <div class="content">Stock market hits record high amid positive earnings reports. #Finance</div>
-                    <div class="actions">❤️ 178 🔄 34 💬 22 📎 1</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>⚽</span></div>
-                        <div>
-                            <div class="name">Sports Desk</div>
-                            <div class="handle">@sportsdesk</div>
-                        </div>
-                        <div class="time">3h ago</div>
-                    </div>
-                    <div class="content">World Cup qualifiers heat up with surprise upsets. #Soccer</div>
-                    <div class="actions">❤️ 345 🔄 78 💬 56 📎 4</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>🔬</span></div>
-                        <div>
-                            <div class="name">Science Today</div>
-                            <div class="handle">@sciencetoday</div>
-                        </div>
-                        <div class="time">4h ago</div>
-                    </div>
-                    <div class="content">New discovery in quantum computing could revolutionize data processing. #Science</div>
-                    <div class="actions">❤️ 212 🔄 49 💬 31 📎 0</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>🎓</span></div>
-                        <div>
-                            <div class="name">Edu News</div>
-                            <div class="handle">@edunews</div>
-                        </div>
-                        <div class="time">5h ago</div>
-                    </div>
-                    <div class="content">Reforms in higher education aim to boost innovation. #Education</div>
-                    <div class="actions">❤️ 134 🔄 28 💬 17 📎 2</div>
-                </div>
-            </div>
-            <div id="feed-community" class="feed">
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>🤝</span></div>
-                        <div>
-                            <div class="name">Community Mod</div>
-                            <div class="handle">@commmod</div>
-                        </div>
-                        <div class="time">1h ago</div>
-                    </div>
-                    <div class="content">Welcome to our AI discussion thread! Share your thoughts on the future. #AICommunity</div>
-                    <div class="actions">❤️ 23 🔄 7 💬 11 📎 0</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>💡</span></div>
-                        <div>
-                            <div class="name">Idea Sharer</div>
-                            <div class="handle">@ideaguy</div>
-                        </div>
-                        <div class="time">2h ago</div>
-                    </div>
-                    <div class="content">How can we make remote work better? Ideas welcome! #WorkFromHome</div>
-                    <div class="actions">❤️ 18 🔄 5 💬 9 📎 1</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>🎭</span></div>
-                        <div>
-                            <div class="name">Creative Collective</div>
-                            <div class="handle">@creatives</div>
-                        </div>
-                        <div class="time">3h ago</div>
-                    </div>
-                    <div class="content">Weekly art challenge: Draw your dream vacation spot. #ArtChallenge</div>
-                    <div class="actions">❤️ 34 🔄 10 💬 14 📎 2</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>🌱</span></div>
-                        <div>
-                            <div class="name">Eco Warriors</div>
-                            <div class="handle">@ecowarriors</div>
-                        </div>
-                        <div class="time">4h ago</div>
-                    </div>
-                    <div class="content">Tips for reducing plastic waste in daily life. What's your go-to? #Sustainability</div>
-                    <div class="actions">❤️ 27 🔄 8 💬 12 📎 0</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>📝</span></div>
-                        <div>
-                            <div class="name">Writing Workshop</div>
-                            <div class="handle">@writersgroup</div>
-                        </div>
-                        <div class="time">5h ago</div>
-                    </div>
-                    <div class="content">Prompt: Write about a memory that shaped you. Share below! #WritingPrompt</div>
-                    <div class="actions">❤️ 41 🔄 13 💬 19 📎 3</div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <div class="profile-pic"><span>🔥</span></div>
-                        <div>
-                            <div class="name">Fitness Fam</div>
-                            <div class="handle">@fitfam</div>
-                        </div>
-                        <div class="time">6h ago</div>
-                    </div>
-                    <div class="content">Group workout challenge: 100 pushups a day. Who's in? #Fitness</div>
-                    <div class="actions">❤️ 56 🔄 15 💬 22 📎 1</div>
-                </div>
-            </div>
-        </main>
-    </div>
-    <script>
-        class WebGLTransition {
-            constructor() {
-                this.scene = new THREE.Scene();
-                this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-                this.renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('webgl-canvas'), alpha: true });
-                this.renderer.setSize(window.innerWidth, window.innerHeight);
-                this.renderer.setClearColor(0x000000, 0);
-                this.material = new THREE.ShaderMaterial({
-                    uniforms: { t: { value: 0 } },
-                    vertexShader: `
-                        varying vec2 vUv;
-                        void main() {
-                            vUv = uv;
-                            gl_Position = vec4(position, 1.0);
-                        }
-                    `,
-                    fragmentShader: `
-                        uniform float t;
-                        varying vec2 vUv;
-                        void main() {
-                            vec2 uv = vUv;
-                            float wave = sin(uv.y * 10.0 + t * 5.0) * 0.01 * (1.0 - t);
-                            uv.x += wave;
-                            if (length(uv - 0.5) > 0.5 + t * 0.5) discard;
-                            gl_FragColor = vec4(0.12, 0.2, 0.3, t * 0.3);
-                        }
-                    `,
-                    transparent: true
-                });
-                this.geometry = new THREE.PlaneGeometry(2, 2);
-                this.mesh = new THREE.Mesh(this.geometry, this.material);
-                this.scene.add(this.mesh);
-                this.active = false;
-                this.animate = this.animate.bind(this);
-                window.addEventListener('resize', () => this.onResize());
-            }
-            startTransition() {
-                if (this.active) return;
-                this.active = true;
-                this.material.uniforms.t.value = 0;
-                this.renderer.setAnimationLoop(this.animate);
-            }
-            endTransition() {
-                this.active = false;
-                this.renderer.setAnimationLoop(null);
-                this.material.uniforms.t.value = 0;
-            }
-            animate() {
-                this.material.uniforms.t.value += 0.05;
-                if (this.material.uniforms.t.value >= 1) {
-                    this.endTransition();
-                }
-                this.renderer.render(this.scene, this.camera);
-            }
-            onResize() {
-                this.renderer.setSize(window.innerWidth, window.innerHeight);
-            }
-        }
-        const transition = new WebGLTransition();
-        const feedNames = ['For You', 'Following', 'News', 'Community'];
-        const feeds = document.querySelectorAll('.feed');
-        let currentFeedIndex = 0;
-        const button = document.getElementById('feed-switch');
-        const dropdown = document.getElementById('dropdown');
-        const userSection = document.getElementById('user-section');
-        const userDropdown = document.getElementById('user-dropdown');
-        let dropdownVisible = false;
-        let userDropdownVisible = false;
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let hasSwiped = false;
+  <div id="app">
+    <header>
+      <div class="left-section">
+        <div class="user-section" id="user-section">
+          <div class="user-pic"><span>👤</span></div>
+          <div id="user-dropdown">
+            <div>Profile</div>
+            <div>Settings</div>
+            <div>Logout</div>
+          </div>
+        </div>
+      </div>
+      <div class="center-section"><div class="logo">𝕏</div></div>
+      <div class="right-section">
+        <button id="feed-switch" aria-haspopup="true" aria-expanded="false">For You</button>
+        <div id="dropdown">
+          <div data-index="0">For You</div>
+          <div data-index="1">Following</div>
+          <div data-index="2">News</div>
+          <div data-index="3">Community</div>
+        </div>
+      </div>
+    </header>
+    <main>
+      <div id="feed-for-you" class="feed active"><div class="post"><div class="profile-pic">😀</div><div><div class="name">Alice</div><div class="handle">@alice</div></div></div></div>
+      <div id="feed-following" class="feed"><div class="post"><div class="profile-pic">👩‍💻</div><div><div class="name">Dana</div><div class="handle">@dev</div></div></div></div>
+      <div id="feed-news" class="feed"><div class="post"><div class="profile-pic">📰</div><div><div class="name">News</div><div class="handle">@news</div></div></div></div>
+      <div id="feed-community" class="feed"><div class="post"><div class="profile-pic">🤝</div><div><div class="name">Community</div><div class="handle">@comm</div></div></div></div>
+    </main>
+  </div>
 
-        function switchFeed(newIndex, dir = 1) {
-            const oldFeed = feeds[currentFeedIndex];
-            const newFeed = feeds[newIndex];
-            transition.startTransition();
-            gsap.to(oldFeed, {
-                xPercent: -dir * 100,
-                duration: 0.4,
-                ease: 'power2.out',
-                onComplete: () => {
-                    oldFeed.classList.remove('active');
-                    oldFeed.style.display = 'none';
-                    newFeed.classList.add('active');
-                    newFeed.style.display = 'block';
-                    gsap.set(newFeed, { xPercent: 0 });
-                    currentFeedIndex = newIndex;
-                    button.textContent = feedNames[newIndex];
-                    button.setAttribute('aria-expanded', 'false');
-                    setTimeout(() => transition.endTransition(), 200);
-                }
-            });
-            gsap.fromTo(newFeed, { xPercent: dir * 100 }, {
-                xPercent: 0,
-                duration: 0.4,
-                ease: 'power2.out'
-            });
-        }
-        function toggleDropdown(show) {
-            dropdownVisible = show;
-            gsap.to(dropdown, { duration: 0.2, opacity: show ? 1 : 0, y: show ? 0 : -8 });
-            dropdown.classList.toggle('show', show);
-            button.setAttribute('aria-expanded', show);
-        }
-        function toggleUserDropdown(show) {
-            userDropdownVisible = show;
-            gsap.to(userDropdown, { duration: 0.2, opacity: show ? 1 : 0, y: show ? 0 : -8 });
-            userDropdown.classList.toggle('show', show);
-        }
-        function closeAllDropdowns() {
-            if (dropdownVisible) toggleDropdown(false);
-            if (userDropdownVisible) toggleUserDropdown(false);
-        }
-        // Button events
-        button.addEventListener('pointerdown', (e) => {
-            touchStartX = e.clientX;
-            touchStartY = e.clientY;
-            hasSwiped = false;
-            closeAllDropdowns();
-            e.preventDefault();
-        });
-        button.addEventListener('pointermove', (e) => {
-            if (!hasSwiped) {
-                const deltaX = Math.abs(e.clientX - touchStartX);
-                const deltaY = Math.abs(e.clientY - touchStartY);
-                if (deltaX > 8 || deltaY > 8) hasSwiped = true;
-            }
-        });
-        button.addEventListener('pointerup', (e) => {
-            if (!hasSwiped) {
-                toggleDropdown(!dropdownVisible);
-            } else {
-                const deltaX = e.clientX - touchStartX;
-                const absX = Math.abs(deltaX);
-                const deltaY = Math.abs(e.clientY - touchStartY);
-                if (absX > 60 && absX > deltaY * 1.5) {
-                    const dir = deltaX > 0 ? -1 : 1; // Right swipe: prev, left: next
-                    const newIndex = (currentFeedIndex + dir + feedNames.length) % feedNames.length;
-                    switchFeed(newIndex, dir);
-                }
-            }
-        });
-        // Dropdown select
-        dropdown.addEventListener('click', (e) => {
-            const item = e.target.closest('div[role="menuitem"]');
-            if (item) {
-                const index = Array.from(dropdown.children).indexOf(item);
-                const dir = index > currentFeedIndex ? 1 : -1;
-                switchFeed(index, dir);
-            }
-        });
-        // User menu
-        userSection.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleUserDropdown(!userDropdownVisible);
-        });
-        userDropdown.addEventListener('click', (e) => {
-            const item = e.target.closest('div[role="menuitem"]');
-            if (item) {
-                console.log(`${item.textContent} selected`);
-                toggleUserDropdown(false);
-            }
-        });
-        // Outside click
-        document.addEventListener('click', (e) => {
-            if (!button.contains(e.target) && !dropdown.contains(e.target)) toggleDropdown(false);
-            if (!userSection.contains(e.target) && !userDropdown.contains(e.target)) toggleUserDropdown(false);
-        });
-        // Keyboard support
-        button.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                toggleDropdown(!dropdownVisible);
-            }
-        });
-        userSection.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                toggleUserDropdown(!userDropdownVisible);
-            }
-        });
-        // Resize
-        window.addEventListener('resize', () => transition.onResize());
-    </script>
+<script>
+  const feeds = document.querySelectorAll('.feed');
+  const feedNames = ['For You', 'Following', 'News', 'Community'];
+  let currentFeedIndex = 0;
+
+  const button = document.getElementById('feed-switch');
+  const dropdown = document.getElementById('dropdown');
+  const userSection = document.getElementById('user-section');
+  const userDropdown = document.getElementById('user-dropdown');
+
+  // Toggle dropdown menu
+  button.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle('show');
+    userDropdown.classList.remove('show');
+  });
+
+  userSection.addEventListener('click', (e) => {
+    e.stopPropagation();
+    userDropdown.classList.toggle('show');
+    dropdown.classList.remove('show');
+  });
+
+  document.addEventListener('click', () => {
+    dropdown.classList.remove('show');
+    userDropdown.classList.remove('show');
+  });
+
+  dropdown.querySelectorAll('div').forEach(item => {
+    item.addEventListener('click', () => {
+      const index = parseInt(item.getAttribute('data-index'));
+      switchFeed(index);
+      dropdown.classList.remove('show');
+    });
+  });
+
+  function switchFeed(newIndex, dir = 1) {
+    if (newIndex === currentFeedIndex) return;
+    const oldFeed = feeds[currentFeedIndex];
+    const newFeed = feeds[newIndex];
+    newFeed.style.display = 'block';
+    gsap.set(newFeed, { xPercent: dir * 100 });
+    gsap.to(oldFeed, { xPercent: -dir * 100, duration: 0.4, ease: 'power2.out' });
+    gsap.to(newFeed, {
+      xPercent: 0,
+      duration: 0.4,
+      ease: 'power2.out',
+      onComplete: () => {
+        oldFeed.classList.remove('active');
+        oldFeed.style.display = 'none';
+        newFeed.classList.add('active');
+        gsap.set(newFeed, { clearProps: 'xPercent' });
+        currentFeedIndex = newIndex;
+        button.textContent = feedNames[newIndex];
+      }
+    });
+  }
+
+  // Swipe handling
+  let startX = 0;
+  let endX = 0;
+  const swipeArea = document.querySelector('main');
+
+  swipeArea.addEventListener('touchstart', (e) => {
+    startX = e.touches[0].clientX;
+  });
+
+  swipeArea.addEventListener('touchmove', (e) => {
+    endX = e.touches[0].clientX;
+  });
+
+  swipeArea.addEventListener('touchend', () => {
+    const deltaX = endX - startX;
+    if (Math.abs(deltaX) > 50) {
+      if (deltaX < 0 && currentFeedIndex < feeds.length - 1) {
+        switchFeed(currentFeedIndex + 1, 1);
+      } else if (deltaX > 0 && currentFeedIndex > 0) {
+        switchFeed(currentFeedIndex - 1, -1);
+      }
+    }
+  });
+</script>
 </body>
 </html>
