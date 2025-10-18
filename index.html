@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>X Clone</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #000;
+            color: #fff;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        #app {
+            height: 100vh;
+            overflow: hidden;
+        }
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: env(safe-area-inset-top, 50px);
+            background: #000;
+            display: flex;
+            align-items: center;
+            z-index: 10;
+            border-bottom: 1px solid #333;
+            padding: 0 max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
+            box-sizing: border-box;
+            padding-top: env(safe-area-inset-top, 0);
+            height: 50px;
+        }
+        .left-section {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            justify-content: flex-start;
+        }
+        .user-section {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            width: 32px;
+            height: 32px;
+        }
+        .user-pic {
+            width: 32px;
+            height: 32px;
+            background: #333;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+            aspect-ratio: 1 / 1;
+            overflow: hidden;
+            line-height: 1;
+        }
+        .center-section {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+        }
+        .logo {
+            font-size: clamp(20px, 6vw, 24px);
+            margin: 0;
+            flex-shrink: 0;
+        }
+        .right-section {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            justify-content: flex-end;
+        }
+        #feed-switch {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: clamp(13px, 3.5vw, 15px);
+            cursor: pointer;
+            padding: 5px 10px;
+            white-space: nowrap;
+            text-align: right;
+            width: auto;
+        }
+        #user-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: #000;
+            border: 1px solid #333;
+            border-top: none;
+            min-width: 160px;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            opacity: 0;
+            transform: translateY(-100%);
+            z-index: 11;
+        }
+        #user-dropdown.open {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        #user-dropdown div {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #333;
+            text-align: left;
+        }
+        #user-dropdown div:last-child {
+            border-bottom: none;
+        }
+        #user-dropdown div:hover {
+            background: #333;
+        }
+        #dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: #000;
+            border: 1px solid #333;
+            border-top: none;
+            min-width: 120px;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            opacity: 0;
+            transform: translateY(-100%);
+            z-index: 11;
+        }
+        #dropdown.open {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        #dropdown div {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #333;
+            text-align: left;
+        }
+        #dropdown div:last-child {
+            border-bottom: none;
+        }
+        #dropdown div:hover {
+            background: #333;
+        }
+        main {
+            position: relative;
+            top: 50px;
+            height: calc(100vh - 50px);
+            overflow-y: auto;
+            transition: transform 0.1s ease; /* For swipe preview */
+            -webkit-overflow-scrolling: touch;
+        }
+        .feed {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        .feed.active {
+            transform: translateX(0);
+        }
+        .post {
+            display: flex;
+            flex-direction: column;
+            padding: 12px 16px;
+            border-bottom: 1px solid #333;
+            max-width: 100%;
+        }
+        .post-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .profile-pic {
+            width: 40px;
+            height: 40px;
+            background: #333;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-right: 12px;
+            flex-shrink: 0;
+            aspect-ratio: 1 / 1;
+            overflow: hidden;
+            line-height: 1;
+            box-sizing: border-box;
+            flex: 0 0 auto;
+        }
+        .post-header > div {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .name {
+            font-weight: bold;
+            word-wrap: break-word;
+            margin: 0;
+        }
+        .handle {
+            color: #71767b;
+            font-size: 14px;
+            margin-top: 2px;
+            word-wrap: break-word;
+            margin: 0;
+        }
+        .time {
+            color: #71767b;
+            font-size: 14px;
+            margin-left: auto;
+            flex-shrink: 0;
+            white-space: nowrap;
+            margin: 0;
+        }
+        .content {
+            line-height: 1.4;
+            word-wrap: break-word;
+            margin-bottom: 8px;
+            margin: 0 0 8px 0;
+        }
+        .actions {
+            display: flex;
+            gap: 20px;
+            color: #71767b;
+            font-size: 14px;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <div class="left-section">
+                <div class="user-section" id="user-section">
+                    <div class="user-pic">👤</div>
+                    <div id="user-dropdown">
+                        <div>Profile</div>
+                        <div>Settings</div>
+                        <div>Logout</div>
+                    </div>
+                </div>
+            </div>
+            <div class="center-section">
+                <div class="logo">𝕏</div>
+            </div>
+            <div class="right-section">
+                <button id="feed-switch">For You</button>
+                <div id="dropdown">
+                    <div>For You</div>
+                    <div>Following</div>
+                    <div>News</div>
+                    <div>Community</div>
+                </div>
+            </div>
+        </header>
+        <main>
+            <div id="feed-for-you" class="feed active">
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">😀</div>
+                        <div>
+                            <div class="name">Alice Johnson</div>
+                            <div class="handle">@alice_j</div>
+                        </div>
+                        <div class="time">1h ago</div>
+                    </div>
+                    <div class="content">Just had the best coffee ever! ☕ Who's with me?</div>
+                    <div class="actions">❤️ 42  🔄 12  💬 8  📎 0</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">😎</div>
+                        <div>
+                            <div class="name">Bob Smith</div>
+                            <div class="handle">@bobtech</div>
+                        </div>
+                        <div class="time">2h ago</div>
+                    </div>
+                    <div class="content">New tech gadget alert! This changes everything. #Innovation</div>
+                    <div class="actions">❤️ 156  🔄 45  💬 23  📎 1</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">🚀</div>
+                        <div>
+                            <div class="name">Space Explorer</div>
+                            <div class="handle">@spacefan</div>
+                        </div>
+                        <div class="time">3h ago</div>
+                    </div>
+                    <div class="content">Watching the stars tonight. Universe is amazing! 🌌</div>
+                    <div class="actions">❤️ 89  🔄 20  💬 15  📎 0</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">🎨</div>
+                        <div>
+                            <div class="name">Art Lover</div>
+                            <div class="handle">@artistic</div>
+                        </div>
+                        <div class="time">4h ago</div>
+                    </div>
+                    <div class="content">Sharing my latest sketch. Feedback welcome! ✏️</div>
+                    <div class="actions">❤️ 67  🔄 18  💬 12  📎 2</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">🍕</div>
+                        <div>
+                            <div class="name">Foodie Fred</div>
+                            <div class="handle">@fred_eats</div>
+                        </div>
+                        <div class="time">5h ago</div>
+                    </div>
+                    <div class="content">Pizza night! What's your favorite topping? 🍕</div>
+                    <div class="actions">❤️ 234  🔄 56  💬 34  📎 0</div>
+                </div>
+            </div>
+            <div id="feed-following" class="feed">
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">👩‍💻</div>
+                        <div>
+                            <div class="name">Dev Dana</div>
+                            <div class="handle">@danadev</div>
+                        </div>
+                        <div class="time">30m ago</div>
+                    </div>
+                    <div class="content">Pushing code updates. Late night grind! 💻</div>
+                    <div class="actions">❤️ 12  🔄 3  💬 2  📎 0</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">🏃‍♂️</div>
+                        <div>
+                            <div class="name">Runner Rick</div>
+                            <div class="handle">@rickruns</div>
+                        </div>
+                        <div class="time">1h ago</div>
+                    </div>
+                    <div class="content">Just completed 10k. Feeling great! 🏅</div>
+                    <div class="actions">❤️ 8  🔄 1  💬 4  📎 0</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">📚</div>
+                        <div>
+                            <div class="name">Bookworm Beth</div>
+                            <div class="handle">@bethreads</div>
+                        </div>
+                        <div class="time">2h ago</div>
+                    </div>
+                    <div class="content">Finished 'Dune' sequel. Mind blown! 📖</div>
+                    <div class="actions">❤️ 15  🔄 4  💬 6  📎 1</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">🎸</div>
+                        <div>
+                            <div class="name">Guitar Gus</div>
+                            <div class="handle">@gusguitar</div>
+                        </div>
+                        <div class="time">3h ago</div>
+                    </div>
+                    <div class="content">New riff idea. What do you think? 🎵</div>
+                    <div class="actions">❤️ 9  🔄 2  💬 3  📎 0</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">🌿</div>
+                        <div>
+                            <div class="name">Gardener Grace</div>
+                            <div class="handle">@gracegrows</div>
+                        </div>
+                        <div class="time">4h ago</div>
+                    </div>
+                    <div class="content">My tomatoes are thriving this season! 🥦</div>
+                    <div class="actions">❤️ 11  🔄 2  💬 5  📎 0</div>
+                </div>
+            </div>
+            <div id="feed-news" class="feed">
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">📰</div>
+                        <div>
+                            <div class="name">News Network</div>
+                            <div class="handle">@newsnet</div>
+                        </div>
+                        <div class="time">Breaking</div>
+                    </div>
+                    <div class="content">Major breakthrough in renewable energy tech announced today. #GreenEnergy</div>
+                    <div class="actions">❤️ 456  🔄 123  💬 89  📎 3</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">🌍</div>
+                        <div>
+                            <div class="name">Global Updates</div>
+                            <div class="handle">@globalnews</div>
+                        </div>
+                        <div class="time">1h ago</div>
+                    </div>
+                    <div class="content">International summit on climate change yields new agreements. #ClimateAction</div>
+                    <div class="actions">❤️ 289  🔄 67  💬 45  📎 2</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">💼</div>
+                        <div>
+                            <div class="name">Econ Watch</div>
+                            <div class="handle">@econwatch</div>
+                        </div>
+                        <div class="time">2h ago</div>
+                    </div>
+                    <div class="content">Stock market hits record high amid positive earnings reports. #Finance</div>
+                    <div class="actions">❤️ 178  🔄 34  💬 22  📎 1</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">⚽</div>
+                        <div>
+                            <div class="name">Sports Desk</div>
+                            <div class="handle">@sportsdesk</div>
+                        </div>
+                        <div class="time">3h ago</div>
+                    </div>
+                    <div class="content">World Cup qualifiers heat up with surprise upsets. #Soccer</div>
+                    <div class="actions">❤️ 345  🔄 78  💬 56  📎 4</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">🔬</div>
+                        <div>
+                            <div class="name">Science Today</div>
+                            <div class="handle">@sciencetoday</div>
+                        </div>
+                        <div class="time">4h ago</div>
+                    </div>
+                    <div class="content">New discovery in quantum computing could revolutionize data processing. #Science</div>
+                    <div class="actions">❤️ 212  🔄 49  💬 31  📎 0</div>
+                </div>
+            </div>
+            <div id="feed-community" class="feed">
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">🤝</div>
+                        <div>
+                            <div class="name">Community Mod</div>
+                            <div class="handle">@commmod</div>
+                        </div>
+                        <div class="time">1h ago</div>
+                    </div>
+                    <div class="content">Welcome to our AI discussion thread! Share your thoughts on the future. #AICommunity</div>
+                    <div class="actions">❤️ 23  🔄 7  💬 11  📎 0</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">💡</div>
+                        <div>
+                            <div class="name">Idea Sharer</div>
+                            <div class="handle">@ideaguy</div>
+                        </div>
+                        <div class="time">2h ago</div>
+                    </div>
+                    <div class="content">How can we make remote work better? Ideas welcome! #WorkFromHome</div>
+                    <div class="actions">❤️ 18  🔄 5  💬 9  📎 1</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">🎭</div>
+                        <div>
+                            <div class="name">Creative Collective</div>
+                            <div class="handle">@creatives</div>
+                        </div>
+                        <div class="time">3h ago</div>
+                    </div>
+                    <div class="content">Weekly art challenge: Draw your dream vacation spot. #ArtChallenge</div>
+                    <div class="actions">❤️ 34  🔄 10  💬 14  📎 2</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">🌱</div>
+                        <div>
+                            <div class="name">Eco Warriors</div>
+                            <div class="handle">@ecowarriors</div>
+                        </div>
+                        <div class="time">4h ago</div>
+                    </div>
+                    <div class="content">Tips for reducing plastic waste in daily life. What's your go-to? #Sustainability</div>
+                    <div class="actions">❤️ 27  🔄 8  💬 12  📎 0</div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <div class="profile-pic">📝</div>
+                        <div>
+                            <div class="name">Writing Workshop</div>
+                            <div class="handle">@writersgroup</div>
+                        </div>
+                        <div class="time">5h ago</div>
+                    </div>
+                    <div class="content">Prompt: Write about a memory that shaped you. Share below! #WritingPrompt</div>
+                    <div class="actions">❤️ 41  🔄 13  💬 19  📎 3</div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+        const feedNames = ['For You', 'Following', 'News', 'Community'];
+        const feeds = document.querySelectorAll('.feed');
+        let currentFeed = 0;
+        const button = document.getElementById('feed-switch');
+        const dropdown = document.getElementById('dropdown');
+        let dropdownOpen = false;
+        let startX, startY, isSwiping = false;
+
+        // User menu
+        const userSection = document.getElementById('user-section');
+        const userDropdown = document.getElementById('user-dropdown');
+        let userDropdownOpen = false;
+        let userStartX, userStartY, isUserSwiping = false;
+        const userMenuItems = ['Profile', 'Settings', 'Logout'];
+
+        // Initialize feeds
+        feeds.forEach((feed, index) => {
+            if (index === 0) {
+                feed.classList.add('active');
+            } else {
+                feed.style.transform = 'translateX(100%)';
+            }
+        });
+
+        function switchTo(index, direction) {
+            index = (index + feedNames.length) % feedNames.length;
+            if (index === currentFeed) return;
+
+            const oldEl = feeds[currentFeed];
+            const newEl = feeds[index];
+
+            // Position new feed offscreen based on direction
+            newEl.style.transform = `translateX(${direction * 100}%)`;
+            newEl.style.zIndex = 1;
+            oldEl.style.zIndex = 0;
+
+            // Trigger reflow
+            newEl.offsetHeight;
+
+            // Animate
+            oldEl.style.transform = `translateX(${-direction * 100}%)`;
+            newEl.style.transform = 'translateX(0%)';
+
+            button.textContent = feedNames[index];
+
+            setTimeout(() => {
+                // Reset all
+                feeds.forEach(feed => {
+                    feed.style.transform = 'translateX(100%)';
+                    feed.style.zIndex = 0;
+                });
+                newEl.style.transform = 'translateX(0%)';
+                newEl.classList.add('active');
+                oldEl.classList.remove('active');
+                currentFeed = index;
+            }, 300);
+        }
+
+        // Feed dropdown click
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdownOpen = !dropdownOpen;
+            dropdown.classList.toggle('open', dropdownOpen);
+        });
+
+        dropdown.addEventListener('click', (e) => {
+            if (e.target.tagName === 'DIV') {
+                const idx = Array.from(dropdown.children).indexOf(e.target);
+                const dir = idx > currentFeed ? 1 : -1;
+                switchTo(idx, dir);
+                closeFeedDropdown();
+            }
+        });
+
+        function closeFeedDropdown() {
+            dropdownOpen = false;
+            dropdown.classList.remove('open');
+        }
+
+        // User menu click
+        userSection.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdownOpen = !userDropdownOpen;
+            userDropdown.classList.toggle('open', userDropdownOpen);
+        });
+
+        userDropdown.addEventListener('click', (e) => {
+            if (e.target.tagName === 'DIV') {
+                console.log('Selected:', e.target.textContent); // Placeholder action
+                closeUserDropdown();
+            }
+        });
+
+        function closeUserDropdown() {
+            userDropdownOpen = false;
+            userDropdown.classList.remove('open');
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!button.contains(e.target) && !dropdown.contains(e.target)) {
+                closeFeedDropdown();
+            }
+            if (!userSection.contains(e.target) && !userDropdown.contains(e.target)) {
+                closeUserDropdown();
+            }
+        });
+
+        // Feed swipe on button
+        const main = document.querySelector('main');
+        button.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            isSwiping = true;
+            closeFeedDropdown();
+            closeUserDropdown();
+            // Reset any previous transform
+            main.style.transform = '';
+        });
+
+        button.addEventListener('touchmove', (e) => {
+            if (!isSwiping) return;
+            e.preventDefault(); // Prevent scroll during swipe check
+            const deltaX = e.touches[0].clientX - startX;
+            const deltaY = e.touches[0].clientY - startY;
+            if (Math.abs(deltaY) > Math.abs(deltaX)) return; // Vertical, allow scroll
+            if (Math.abs(deltaX) > 10) {
+                main.style.transform = `translateX(${deltaX}px)`;
+            }
+        });
+
+        button.addEventListener('touchend', (e) => {
+            if (!isSwiping) return;
+            isSwiping = false;
+            const deltaX = e.changedTouches[0].clientX - startX;
+            const deltaY = e.changedTouches[0].clientY - startY;
+            main.style.transform = '';
+            if (Math.abs(deltaY) > 20 || Math.abs(deltaX) < 50) return;
+            const dir = deltaX > 0 ? -1 : 1; // Right swipe (positive deltaX) goes to previous? Adjust as needed
+            const newIndex = (currentFeed + dir + feedNames.length) % feedNames.length;
+            switchTo(newIndex, dir);
+        });
+
+        // User menu swipe
+        let currentUserIndex = 0;
+        userSection.addEventListener('touchstart', (e) => {
+            userStartX = e.touches[0].clientX;
+            userStartY = e.touches[0].clientY;
+            isUserSwiping = true;
+            closeUserDropdown();
+            closeFeedDropdown();
+        });
+
+        userSection.addEventListener('touchmove', (e) => {
+            if (!isUserSwiping) return;
+            e.preventDefault();
+            const deltaX = e.touches[0].clientX - userStartX;
+            const deltaY = e.touches[0].clientY - userStartY;
+            if (Math.abs(deltaY) > Math.abs(deltaX)) return;
+            // Could add visual feedback if needed
+        });
+
+        userSection.addEventListener('touchend', (e) => {
+            if (!isUserSwiping) return;
+            isUserSwiping = false;
+            const deltaX = e.changedTouches[0].clientX - userStartX;
+            const deltaY = e.changedTouches[0].clientY - userStartY;
+            if (Math.abs(deltaY) > 20 || Math.abs(deltaX) < 50) return;
+            const dir = deltaX > 0 ? 1 : -1; // Adjust direction as needed
+            currentUserIndex = (currentUserIndex + dir + userMenuItems.length) % userMenuItems.length;
+            console.log('Swiped to:', userMenuItems[currentUserIndex]); // Placeholder action
+        });
+    </script>
+</body>
+</html>
